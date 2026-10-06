@@ -1,0 +1,65 @@
+{
+  "name": "commit-helper",
+  "displayName": "Commit Helper",
+  "description": "Assistant de création de commit (type, ticket Mantis, commentaire, liste des fichiers).",
+  "version": "0.1.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "commitHelper.open",
+        "title": "Commit Helper : assistant de message de commit",
+        "icon": "$(note)"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "commitHelper.open",
+          "when": "scmProvider == git",
+          "group": "navigation@-1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Commit Helper",
+      "properties": {
+        "commitHelper.format": {
+          "type": "string",
+          "default": "{type}(#{mantis}): {message}",
+          "markdownDescription": "Format du titre du commit. Variables : `{type}`, `{mantis}`, `{message}`."
+        },
+        "commitHelper.types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "feat",
+            "fix",
+            "hotfix",
+            "release",
+            "chore",
+            "refactor",
+            "test",
+            "docs",
+            "build",
+            "ci"
+          ],
+          "description": "Liste des types de commit proposés."
+        }
+      }
+    }
+  }
+}
