@@ -11,6 +11,20 @@ function parseMantisId(input) {
   return null; // format invalide
 }
 
+/**
+ * Cherche le numéro Mantis dans le nom de la branche, ex. "feat/6678_user_fidelity" -> "6678".
+ * `pattern` est une regex dont le 1er groupe capturant est le numéro.
+ */
+function extractMantisFromBranch(branchName, pattern) {
+  if (!branchName) return '';
+  try {
+    const match = new RegExp(pattern).exec(branchName);
+    return match && match[1] ? match[1] : '';
+  } catch (e) {
+    return ''; // regex invalide dans les paramètres : on ignore la détection
+  }
+}
+
 function getRepository(arg) {
   const gitExt = vscode.extensions.getExtension('vscode.git');
   if (!gitExt) return undefined;
@@ -41,46 +55,65 @@ async function openHelper(arg) {
   const config = vscode.workspace.getConfiguration('commitHelper');
   const types = config.get('types');
   const format = config.get('format');
+  const includeFilesByDefault = config.get('includeFilesByDefault');
 
-  // 1. Type de commit
+  // Numéro Mantis détecté dans le nom de la branche (si possible)
+  const branch = repo.state.HEAD && repo.state.HEAD.name;
+  let mantis = extractMantisFromBranch(branch, config.get('branchPattern'));
+  const askMantis = !mantis;
+  const askFiles = !includeFilesByDefault;
+
+  // Nombre d'étapes affichées à l'utilisateur
+  const total = 2 + (askMantis ? 1 : 0) + (askFiles ? 1 : 0);
+  let step = 0;
+  const stepTitle = (label) => `Commit Helper (${++step}/${total}) — ${label}`;
+
+  // Type de commit
   const type = await vscode.window.showQuickPick(types, {
-    title: 'Commit Helper (1/4) — Type de commit',
+    title: stepTitle('Type de commit'),
     placeHolder: 'Choisis le type de commit',
   });
   if (!type) return;
 
-  // 2. Carte Mantis (URL ou numéro, optionnel)
-  const mantisInput = await vscode.window.showInputBox({
-    title: 'Commit Helper (2/4) — Carte Mantis',
-    prompt: 'URL Mantis ou numéro (laisser vide pour ignorer)',
-    placeHolder: 'http://bugtracker.retailandco.com/view.php?id=6478',
-    validateInput: (v) =>
-      parseMantisId(v) === null
-        ? 'Format invalide : colle une URL contenant ?id=XXXX ou un numéro.'
-        : undefined,
-  });
-  if (mantisInput === undefined) return;
-  const mantis = parseMantisId(mantisInput);
+  // Carte Mantis : uniquement si absente du nom de la branche
+  if (askMantis) {
+    const mantisInput = await vscode.window.showInputBox({
+      title: stepTitle('Carte Mantis'),
+      prompt: 'URL Mantis ou numéro (laisser vide pour ignorer)',
+      placeHolder: 'http://bugtracker.retailandco.com/view.php?id=6478',
+      validateInput: (v) =>
+        parseMantisId(v) === null
+          ? 'Format invalide : colle une URL contenant ?id=XXXX ou un numéro.'
+          : undefined,
+    });
+    if (mantisInput === undefined) return;
+    mantis = parseMantisId(mantisInput);
+  }
 
-  // 3. Commentaire
+  // Commentaire
   const message = await vscode.window.showInputBox({
-    title: 'Commit Helper (3/4) — Commentaire',
-    prompt: 'Description du commit',
+    title: stepTitle('Commentaire'),
+    prompt: mantis && !askMantis
+      ? `Description du commit — Mantis #${mantis} (détecté depuis la branche "${branch}")`
+      : 'Description du commit',
     validateInput: (v) => (v.trim() ? undefined : 'Le commentaire est requis.'),
   });
   if (message === undefined) return;
 
-  // 4. Case à cocher : lister les fichiers modifiés
-  const options = await vscode.window.showQuickPick(
-    [{ label: 'Ajouter la liste des fichiers modifiés au message', id: 'files' }],
-    {
-      title: 'Commit Helper (4/4) — Options',
-      placeHolder: 'Coche l\'option si besoin, puis valide avec Entrée',
-      canPickMany: true,
-    }
-  );
-  if (options === undefined) return;
-  const withFiles = options.some((o) => o.id === 'files');
+  // Liste des fichiers : automatique si l'option est cochée, sinon on demande
+  let withFiles = includeFilesByDefault;
+  if (askFiles) {
+    const options = await vscode.window.showQuickPick(
+      [{ label: 'Ajouter la liste des fichiers modifiés au message', id: 'files' }],
+      {
+        title: stepTitle('Options'),
+        placeHolder: "Coche l'option si besoin, puis valide avec Entrée",
+        canPickMany: true,
+      }
+    );
+    if (options === undefined) return;
+    withFiles = options.some((o) => o.id === 'files');
+  }
 
   // Construction du message
   let title = format
@@ -112,4 +145,4 @@ function activate(context) {
 
 function deactivate() {}
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, extractMantisFromBranch, parseMantisId };

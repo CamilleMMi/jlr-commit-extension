@@ -2,7 +2,7 @@
   "name": "commit-helper",
   "displayName": "Commit Helper",
   "description": "Assistant de création de commit (type, ticket Mantis, commentaire, liste des fichiers).",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "publisher": "local",
   "engines": {
     "vscode": "^1.80.0"
@@ -58,6 +58,16 @@
             "ci"
           ],
           "description": "Liste des types de commit proposés."
+        },
+        "commitHelper.includeFilesByDefault": {
+          "type": "boolean",
+          "default": true,
+          "description": "Si coché : la liste des fichiers modifiés est ajoutée automatiquement, sans question. Si décoché : l'assistant pose la question à la fin."
+        },
+        "commitHelper.branchPattern": {
+          "type": "string",
+          "default": "(?:^|[/_-])(\\d{3,})(?=[/_-]|$)",
+          "markdownDescription": "Expression régulière pour trouver le numéro Mantis dans le nom de la branche (le 1er groupe capturant est le numéro). Ex. `feat/6678_user_fidelity` donne `6678`."
         }
       }
     }
